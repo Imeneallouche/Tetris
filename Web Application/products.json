@@ -1,0 +1,35 @@
+{
+  "products": [
+    {
+      "category": "Refrigerated",
+      "temperature_range": "2-8°C",
+      "items": ["Milk", "Cheese", "Yogurt", "Fresh Meat", "Seafood"]
+    },
+    {
+      "category": "Frozen",
+      "temperature_range": "-18°C and below",
+      "items": ["Frozen Vegetables", "Ice Cream", "Frozen Meat", "Frozen Fish"]
+    },
+    {
+      "category": "Room Temperature",
+      "temperature_range": "15-25°C",
+      "items": [
+        "Packaged Snacks",
+        "Dry Grains",
+        "Canned Goods",
+        "Pasta",
+        "Bread"
+      ]
+    },
+    {
+      "category": "Fragile & Special Handling",
+      "temperature_range": "Varies",
+      "items": [
+        "Glass Bottled Beverages",
+        "Pharmaceuticals",
+        "Chemicals",
+        "Electronics"
+      ]
+    }
+  ]
+}
