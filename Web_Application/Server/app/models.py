@@ -35,10 +35,6 @@ class ProductType(Enum):
     RECYCLABLE_PLASTIC = "Recyclable_Plastic"
 
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 7a3b342 (changes on the DB model have been pushed)
 # Association Table pour Produit <-> Matiere avec quantité
 product_matiere = Table(
     "product_matiere",
@@ -186,11 +182,8 @@ class Camion(Base):
     mark = Column(String, nullable=False)
     poids_max = Column(Float, nullable=False)
     volume_max = Column(Float, nullable=False)
-<<<<<<< HEAD
-=======
     state = Column(Boolean, nullable=False)
     transport_cost = Column(Float, nullable=False)
->>>>>>> 7a3b342 (changes on the DB model have been pushed)
 
     # Relation many-to-many avec Contract
     contracts = relationship(
@@ -232,20 +225,13 @@ class Contract(Base):
         return f"<Contract(id={self.id})>"
 
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 7a3b342 (changes on the DB model have been pushed)
 # Configuration de la base de données SQLite
 def init_db(db_url="sqlite:///database.db"):
     engine = create_engine(db_url, echo=True)
     Base.metadata.create_all(engine)
     return engine
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 7a3b342 (changes on the DB model have been pushed)
 # Création d'une session SQLAlchemy
 engine = init_db()
 Session = sessionmaker(bind=engine)
