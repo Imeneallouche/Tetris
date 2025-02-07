@@ -1,0 +1,68 @@
+{
+  "product_types": [
+    {
+      "type": "FMCG_Food",
+      "fragility": false,
+      "rotatable": true,
+      "incompatible_types": ["Hazardous", "Flammable"],
+      "min_temperature": 0,
+      "max_temperature": 25
+    },
+    {
+      "type": "FMCG_Beverages",
+      "fragility": false,
+      "rotatable": true,
+      "incompatible_types": ["Toxic", "Chemical"],
+      "min_temperature": 2,
+      "max_temperature": 10
+    },
+    {
+      "type": "CPG_Electronics",
+      "fragility": true,
+      "rotatable": false,
+      "incompatible_types": ["Heavy", "Liquids"],
+      "min_temperature": 0,
+      "max_temperature": 40
+    },
+    {
+      "type": "Industrial_Machinery",
+      "fragility": false,
+      "rotatable": true,
+      "incompatible_types": ["Fragile", "Pharmaceutical"],
+      "min_temperature": null,
+      "max_temperature": null
+    },
+    {
+      "type": "Pharmaceuticals",
+      "fragility": true,
+      "rotatable": false,
+      "incompatible_types": ["Chemical", "Flammable"],
+      "min_temperature": 2,
+      "max_temperature": 8
+    },
+    {
+      "type": "Oil_Gas",
+      "fragility": false,
+      "rotatable": false,
+      "incompatible_types": ["Food", "Pharmaceutical"],
+      "min_temperature": -10,
+      "max_temperature": 50
+    },
+    {
+      "type": "Luxury_Goods",
+      "fragility": true,
+      "rotatable": false,
+      "incompatible_types": ["Heavy", "Hazardous"],
+      "min_temperature": 5,
+      "max_temperature": 30
+    },
+    {
+      "type": "Recyclable_Plastic",
+      "fragility": false,
+      "rotatable": true,
+      "incompatible_types": ["Food", "Medical"],
+      "min_temperature": null,
+      "max_temperature": null
+    }
+  ]
+}
