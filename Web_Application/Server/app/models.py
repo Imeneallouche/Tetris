@@ -25,10 +25,15 @@ class UserRole(Enum):
 
 
 class ProductType(Enum):
-    refrigerated = "Refrigerated"
-    frozen = "Frozen"
-    room_temperature = "Room Temperature"
-    fragile = "Fragile & Special Handling"
+    FMCG_FOOD = "FMCG_Food"
+    FMCG_BEVERAGES = "FMCG_Beverages"
+    CPG_ELECTRONICS = "CPG_Electronics"
+    INDUSTRIAL_MACHINERY = "Industrial_Machinery"
+    PHARMACEUTICALS = "Pharmaceuticals"
+    OIL_GAS = "Oil_Gas"
+    LUXURY_GOODS = "Luxury_Goods"
+    RECYCLABLE_PLASTIC = "Recyclable_Plastic"
+
 
 
 # Association Table pour Produit <-> Matiere avec quantité
