@@ -1,8 +1,3 @@
-# /*//////////////////////////////////////////////////////////////
-#                    MADE WITH <3 BY T34M IMP3RM34BLE
-#                                IMPORTS
-# /*//////////////////////////////////////////////////////////////
-
 from flask import Flask, request, jsonify
 from datetime import datetime
 from sqlalchemy.orm import sessionmaker
@@ -661,6 +656,3 @@ def optimize_route():
             400,
         )
 
-
-if __name__ == "__main__":
-    app.run(debug=True)
