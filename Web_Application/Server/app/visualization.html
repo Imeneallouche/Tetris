@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Visualisation 3D du Chargement</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>Informations du Chargement</h3>
+        <div id="truckInfo"></div>
+        <div id="paletteInfo"></div>
+    </div>
+    <script>
+        // Configuration initiale Three.js
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lumières
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(1, 1, 1);
+        scene.add(directionalLight);
+
+        // Position de la caméra
+        camera.position.set(15, 10, 15);
+        camera.lookAt(0, 0, 0);
+
+        // Création du camion (remorque)
+        function createTruck(dimensions) {
+            const truckGeometry = new THREE.BoxGeometry(
+                dimensions.length,
+                dimensions.height,
+                dimensions.width
+            );
+            const truckMaterial = new THREE.MeshPhongMaterial({
+                color: 0x808080,
+                transparent: true,
+                opacity: 0.5
+            });
+            const truck = new THREE.Mesh(truckGeometry, truckMaterial);
+            truck.position.y = dimensions.height / 2;
+            scene.add(truck);
+            return truck;
+        }
+
+        // Création d'une palette
+        function createPalette(palette) {
+            const geometry = new THREE.BoxGeometry(
+                palette.dimensions.length,
+                palette.dimensions.height,
+                palette.dimensions.width
+            );
+            const material = new THREE.MeshPhongMaterial({
+                color: getColorForProductType(palette.product_type)
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            
+            // Positionner la palette
+            mesh.position.set(
+                palette.position.x,
+                palette.position.y + palette.dimensions.height / 2,
+                palette.position.z
+            );
+            
+            if (palette.position.rotation) {
+                mesh.rotation.y = THREE.Math.degToRad(palette.position.rotation);
+            }
+            
+            scene.add(mesh);
+            return mesh;
+        }
+
+        // Couleurs selon le type de produit
+        function getColorForProductType(type) {
+            const colors = {
+                'FMCG_FOOD': 0x00ff00,
+                'ELECTRONICS': 0xff0000,
+                'DEFAULT': 0xcccccc
+            };
+            return colors[type] || colors.DEFAULT;
+        }
+
+        // Charger les données
+        async function loadTruckData() {
+            // Simuler le chargement des données depuis votre API
+            const truckData = {
+                type: "SEMI_STANDARD",
+                dimensions: {
+                    length: 13.6,
+                    width: 2.45,
+                    height: 2.7
+                },
+                palettes: [
+                    {
+                        id: 1,
+                        position: { x: 1, y: 0, z: 0, rotation: 0 },
+                        dimensions: { length: 1.2, width: 0.8, height: 1.5 },
+                        product_type: "FMCG_FOOD",
+                        weight: 500,
+                        destination: "Paris"
+                    },
+                    // Ajoutez d'autres palettes ici
+                ]
+            };
+            
+            // Créer le camion
+            const truck = createTruck(truckData.dimensions);
+            
+            // Créer les palettes
+            truckData.palettes.forEach(createPalette);
+            
+            // Mettre à jour les informations
+            updateInfo(truckData);
+        }
+
+        // Mettre à jour les informations affichées
+        function updateInfo(truckData) {
+            document.getElementById('truckInfo').innerHTML = `
+                <p>Type: ${truckData.type}</p>
+                <p>Dimensions: ${truckData.dimensions.length}x${truckData.dimensions.width}x${truckData.dimensions.height}m</p>
+            `;
+            
+            const paletteInfo = truckData.palettes.map(p => `
+                <p>Palette ${p.id}: ${p.product_type} - ${p.weight}kg - ${p.destination}</p>
+            `).join('');
+            
+            document.getElementById('paletteInfo').innerHTML = paletteInfo;
+        }
+
+        // Animation
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        // Gestion du redimensionnement
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Démarrer l'application
+        loadTruckData();
+        animate();
+    </script>
+</body>
+</html>

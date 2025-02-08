@@ -1,13 +1,9 @@
-import sqlite3
+from sqlalchemy import inspect
+from models import engine  # Assure-toi que c'est le bon engine
 
-# Se connecter à la base de données
-conn = sqlite3.connect('database.db')
-cursor = conn.cursor()
+inspector = inspect(engine)
+for table in inspector.get_table_names():
+    print(f"Table: {table}")
+    for column in inspector.get_columns(table):
+        print(f"  - {column['name']} ({column['type']})")
 
-# Exemple : afficher les tables existantes
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-tables = cursor.fetchall()
-print("Tables existantes :", tables)
-
-# Fermer la connexion
-conn.close()
