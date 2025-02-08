@@ -81,14 +81,9 @@ La solution s’appuie sur une base de données relationnelle SQLite, avec SQLAl
 
 ## Fonctionnalités Implémentées
 
-### 1. Optimisation du Chargement des Camions  
-Ce projet vise à optimiser le chargement des camions en maximisant leur utilisation tout en respectant plusieurs contraintes, notamment :  
-- Capacité des camions : Volume, poids et répartition équilibrée.  
-- Compatibilité des produits : Gestion des types de marchandises selon un fichier JSON.  
-- Planification des itinéraires : Utilisation de l’API OpenStreetMap pour proposer un trajet optimisé en fonction du chargement.  
-- Placement des palettes : Algorithme avancé de Bin Packing 3D intégrant des critères supplémentaires (équilibrage du poids, fragilité, orientation des colis, etc.).  
+### 1. Optimisation du Chargement  
 
-## Objectifs  
+- **Objectif** :
 - Regrouper les commandes compatibles pour limiter le nombre de camions utilisés.  
 - Respecter les contraintes physiques (volume et poids) tout en assurant un chargement équilibré.  
 - Optimiser les itinéraires en regroupant les commandes compatibles sur un même trajet.  
