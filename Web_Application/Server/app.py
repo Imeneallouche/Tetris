@@ -1,17 +1,26 @@
+# /*//////////////////////////////////////////////////////////////
+#                    MADE WITH <3 BY T34M IMP3RM34BLE
+#                                IMPORTS
+# /////////////////////////////////////////////////////////////*/
+
 from flask import Flask, request, jsonify
 from datetime import datetime
 from sqlalchemy.orm import sessionmaker
-from app.models import init_db, User, Command, Palette, Product, Camion, Stock
 import os
 import json
 from math import radians, cos, sin, asin, sqrt
 from datetime import datetime, timedelta
 import sys
 
-# Adjust the path so we can import the models module
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, parent_dir)
 
+from app.models import init_db, User, Command, Palette, Product, Camion, Stock, UserRole
+
+
+# /*//////////////////////////////////////////////////////////////
+#                  STATIC VARIABLES AND INITIALIZATIONS
+# //////////////////////////////////////////////////////////////*/
 
 app = Flask(__name__)
 engine = init_db()  # Initialize the SQLite database and create tables
@@ -22,7 +31,7 @@ Session = sessionmaker(bind=engine)
 DEFAULT_PALETTE_EMPTY_WEIGHT = 10.0  # poids de la palette vide
 DEFAULT_PALETTE_DIMENSION = 1.0  # dimensions par défaut (height, width, length)
 THRESHOLD_DISTANCE = 10  # Threshold distance (in kilometers) to group orders and to check supplier proximity
-
+WAREHOUSE_COORD = "48.8566,2.3522"  # example coordinate (Paris center)
 
 # Load the JSON file with product types and their constraints
 PRODUCTS_JSON_PATH = os.path.join(parent_dir, "Web_Application/Server/products.json")
@@ -79,6 +88,55 @@ def are_product_types_compatible(order1, order2):
     if pt2 in incompat1 or pt1 in incompat2:
         return False
     return True
+
+
+# /*//////////////////////////////////////////////////////////////
+#               COMPUTE MIDPOINT BETWEEN TWO DESTINATIONS
+# //////////////////////////////////////////////////////////////*/
+def compute_midpoint(coord1, coord2):
+    """
+    Given two destination strings "lat,lon", compute the midpoint (lat, lon).
+    """
+    lat1, lon1 = parse_coordinates(coord1)
+    lat2, lon2 = parse_coordinates(coord2)
+    if lat1 is None or lat2 is None:
+        return None, None
+    return (lat1 + lat2) / 2, (lon1 + lon2) / 2
+
+
+# /*//////////////////////////////////////////////////////////////
+#               SUPPLIERS NEARBY THE COMING BACK ITINERARY
+# //////////////////////////////////////////////////////////////*/
+def detect_supplier(mid_lat, mid_lon):
+    """
+    Query the database for suppliers (users with role 'fournisseur')
+    and return the ID and address of the supplier that is closest to the midpoint,
+    if within the THRESHOLD_DISTANCE.
+    """
+    session = Session()
+    suppliers = session.query(User).filter(User.role == UserRole.fournisseur).all()
+    best_supplier = None
+    best_distance = float("inf")
+    for supplier in suppliers:
+        supp_coord = parse_coordinates(getattr(supplier, "address", ""))
+        if supp_coord:
+            dist = haversine(mid_lat, mid_lon, supp_coord[0], supp_coord[1])
+            if dist < THRESHOLD_DISTANCE and dist < best_distance:
+                best_supplier = supplier
+                best_distance = dist
+    session.close()
+    if best_supplier:
+        return best_supplier.id, getattr(best_supplier, "address", None)
+    return None, None
+
+
+def get_route(waypoints):
+    """
+    Simulate a call to an external routing API (OpenStreetMap) to obtain
+    the optimal route for the given list of waypoints.
+    """
+    # In a real implementation, use the requests library to call the external API.
+    return {"route": "Simulated optimal route", "waypoints": waypoints}
 
 
 # /*//////////////////////////////////////////////////////////////
@@ -517,6 +575,91 @@ def estimate_warehouse_needs(supplier_id, group):
 
     session.close()
     return additional_needs
+
+
+# /*//////////////////////////////////////////////////////////////
+#                         ITENERARY OPTIMISATION
+# //////////////////////////////////////////////////////////////*/
+
+
+@app.route("/api/optimize_route", methods=["POST"])
+def optimize_route():
+    """
+    Endpoint to optimize a truck's route.
+
+    Expected JSON input:
+    {
+        "truck_id": <integer>,
+        "direction": "outbound" or "return",
+        "palettes": [
+            {"order_id": 1, "position": 3, "destination": "48.8600,2.3500"},
+            {"order_id": 2, "position": 1, "destination": "48.8570,2.3530"},
+            {"order_id": 3, "position": 2, "destination": "48.8585,2.3525"}
+        ]
+    }
+
+    For the outbound route, the order is determined by LIFO (sorted by position descending).
+    For the return route, the starting point is the last delivery destination,
+    and if a supplier is detected on the return path, its address is added as a waypoint.
+    """
+    data = request.get_json()
+    required_fields = ["truck_id", "direction", "palettes"]
+    missing = [field for field in required_fields if field not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    truck_id = data["truck_id"]
+    direction = data["direction"]
+    palettes = data["palettes"]
+
+    if not isinstance(palettes, list) or not palettes:
+        return jsonify({"error": "Palettes must be a non-empty list."}), 400
+
+    # Validate each palette entry contains 'order_id', 'position', and 'destination'
+    for p in palettes:
+        if not all(k in p for k in ("order_id", "position", "destination")):
+            return (
+                jsonify(
+                    {
+                        "error": "Each palette must include 'order_id', 'position', and 'destination'."
+                    }
+                ),
+                400,
+            )
+
+    if direction == "outbound":
+        # Outbound: determine delivery order based on LIFO (highest position first)
+        sorted_palettes = sorted(palettes, key=lambda x: x["position"], reverse=True)
+        # Build the list of waypoints (delivery destinations) in order
+        waypoints = [p["destination"] for p in sorted_palettes]
+        route_info = get_route(waypoints)
+        route_info["delivery_order"] = [p["order_id"] for p in sorted_palettes]
+        return jsonify(route_info), 200
+
+    elif direction == "return":
+        # Return: start from the last delivered destination
+        sorted_palettes = sorted(palettes, key=lambda x: x["position"], reverse=True)
+        last_destination = sorted_palettes[-1]["destination"]
+        # Compute the midpoint between the last destination and the warehouse
+        mid_lat, mid_lon = compute_midpoint(last_destination, WAREHOUSE_COORD)
+        supplier_id, supplier_address = (None, None)
+        if mid_lat is not None:
+            supplier_id, supplier_address = detect_supplier(mid_lat, mid_lon)
+        # Build the waypoints for the return route:
+        # Start at last destination, then (if supplier found) supplier, then warehouse.
+        waypoints = [last_destination]
+        if supplier_address:
+            waypoints.append(supplier_address)
+        waypoints.append(WAREHOUSE_COORD)
+        route_info = get_route(waypoints)
+        route_info["fournisseur_id"] = supplier_id
+        return jsonify(route_info), 200
+
+    else:
+        return (
+            jsonify({"error": "Invalid 'direction'. Must be 'outbound' or 'return'."}),
+            400,
+        )
 
 
 if __name__ == "__main__":
