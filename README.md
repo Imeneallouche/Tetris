@@ -84,34 +84,28 @@ La solution s’appuie sur une base de données relationnelle SQLite, avec SQLAl
 ### 1. Optimisation du Chargement  
 
 - **Objectif** :
-- Regrouper les commandes compatibles pour limiter le nombre de camions utilisés.  
-- Respecter les contraintes physiques (volume et poids) tout en assurant un chargement équilibré.  
-- Optimiser les itinéraires en regroupant les commandes compatibles sur un même trajet.  
-- Améliorer l'algorithme de Bin Packing 3D en prenant en compte la longueur, largeur et hauteur des palettes, ainsi que d'autres critères de chargement.  
-- Générer une disposition précise des palettes dans le camion avec des coordonnées (x, y, z).  
+  - Regrouper les commandes compatibles pour limiter le nombre de camions utilisés.
+  - Respecter les contraintes physiques (volume et poids) tout en assurant un chargement équilibré.
+  - Optimiser les itinéraires en regroupant les commandes compatibles sur un même trajet.
+  - Améliorer l'algorithme de Bin Packing 3D en prenant en compte la longueur, largeur et hauteur des palettes, ainsi que d'autres critères de chargement.
+  - Générer une disposition précise des palettes dans le camion avec des coordonnées (x, y, z).  
 
-## Algorithme  
+- **psseudo-algorithme** :
+  - Sélection et Regroupement des Commandes: filtrer des commandes du même jour et de la compatibilité des produits via un fichier JSON appelé products.json
+  - Sélection du camion disponible ayant la capacité suffisante, le coût minimal et les caractéristiques adaptées (température, type de marchandises).
+  - Placement des palettes en respectant plusieurs contraintes :
+    - Répartition équilibrée du poids pour la stabilité.  
+    - Gestion des produits fragiles pour éviter les risques lors du transport.  
+    - Empilement des palettes : une palette lourde ne doit pas être posée sur une palette plus légère.  
+    - Optimisation de l’espace en tenant compte de la rotation des palettes.  
+    - Ordre de chargement en fonction de l’itinéraire, en plaçant en dernier les palettes destinées aux premières livraisons.  
 
-### 1. Sélection et Regroupement des Commandes  
-- Filtrage des commandes du même jour.  
-- Vérification de la compatibilité des produits via un fichier JSON.  
-- Analyse des itinéraires avec l’API OpenStreetMap pour regrouper les commandes sur un même trajet.  
-
-### 2. Attribution et Chargement des Camions  
-- Sélection du camion disponible ayant la capacité suffisante, le coût minimal et les caractéristiques adaptées (température, type de marchandises).  
-- Placement des palettes en respectant plusieurs contraintes :  
-  - Répartition équilibrée du poids pour la stabilité.  
-  - Gestion des produits fragiles pour éviter les risques lors du transport.  
-  - Empilement des palettes : une palette lourde ne doit pas être posée sur une palette plus légère.  
-  - Optimisation de l’espace en tenant compte de la rotation des palettes.  
-  - Ordre de chargement en fonction de l’itinéraire, en plaçant en dernier les palettes destinées aux premières livraisons.  
-
-### 3. Résultats Attendus  
-- Génération d’un schéma détaillé du chargement avec les coordonnées exactes de chaque palette (x, y, z).  
-- Suggestion d’un itinéraire optimisé basé sur le chargement et la destination des commandes.  
-- Réduction des trajets à vide et meilleure utilisation des camions.  
-- Optimisation de l’espace de chargement avec une réduction des coûts de transport estimée entre 15 et 25 %.  
-- Planification plus efficace des livraisons.  
+- **Résultats Attendus** :
+  - Génération d’un schéma détaillé du chargement avec les coordonnées exactes de chaque palette (x, y, z).  
+  - Suggestion d’un itinéraire optimisé basé sur le chargement et la destination des commandes.  
+  - Réduction des trajets à vide et meilleure utilisation des camions.  
+  - Optimisation de l’espace de chargement avec une réduction des coûts de transport estimée entre 15 et 25 %.  
+  - Planification plus efficace des livraisons.  
 
 <br><br>
 
