@@ -23,6 +23,7 @@ Notre solution, baptisée **Tetris**, s'inspire du célèbre jeu de puzzle où l
     - [1. Optimisation du Chargement](#1-optimisation-du-chargement)
     - [2. Optimisation de Planification et Coordination](#2-optimisation-de-planification-et-coordination)
     - [3. Optimisation d'Itinéraire](#3-optimisation-ditinéraire)
+    - [4. Optimisation et Réactivité des Itinéraires ](#4-Optimisation-et-Réactivité-des-Itinéraires) 
     - [OPTIONAL – Estimation des Besoins en Matières Premières](#optional--estimation-des-besoins-en-matières-premières)
   - [Résultats et Statistiques](#résultats-et-statistiques)
   - [Installation et Déploiement](#installation-et-déploiement)
@@ -164,6 +165,30 @@ La solution s’appuie sur une base de données relationnelle SQLite, avec SQLAl
   - Amélioration de la réactivité en cas d’imprévus grâce à une intégration dynamique des données en temps réel.
 
 ---
+
+
+### 4. Optimisation et Réactivité des Itinéraires  
+- **Objectif**  Optimiser les trajets et ajuster dynamiquement l’itinéraire en cas d’imprévu (accident, trafic, etc.).
+- **Fonctionnalités**:
+  - Optimisation initiale de l’itinéraire via OpenStreetMap.
+  - Prise en compte des contraintes : capacité du véhicule, fenêtres temporelles.
+  - Réactivité en temps réel : mise à jour de l’itinéraire si un événement survient (trafic, incident).
+  - Utilisation d’API externes (Google Maps, OpenStreetMap) pour recalculer dynamiquement les trajets.
+
+
+- **pseudo-algorithme**:
+  - Optimisation initiale du trajet via Google OR-Tools et OpenStreetMap.
+  - Surveillance en temps réel : écoute des événements de trafic et incidents.
+  - Recalibrage dynamique: mise à jour de l’itinéraire en minimisant l’impact sur les livraisons en cours.
+  - Affichage d’un itinéraire alternatif validé avant modification.  
+
+- **Résultats Attendus**:
+  - Réduction des coûts de transport (moins de kilomètres inutiles).
+  - Meilleure efficacité logistique : livraisons plus rapides et mieux planifiées.
+  - Adaptabilité aux conditions réelles pour éviter les retards.
+
+---
+    
 
 ### OPTIONAL – Estimation des Besoins en Matières Premières
 
