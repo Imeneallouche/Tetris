@@ -70,6 +70,9 @@ La solution s’appuie sur une base de données relationnelle SQLite, avec SQLAl
   - **OpenStreetMap API** (utilisée dans le frontend) pour le géocodage et la planification d’itinéraire.
   - **Modules d’intelligence artificielle** pour générer des prédictions de besoins en matières premières et pour ajuster dynamiquement les routes en fonction du climat et des incidents.
 
+
+![image](https://github.com/user-attachments/assets/7819a379-e058-46a2-aeed-780376c54b95)
+
 <br><br>
 
 ---
