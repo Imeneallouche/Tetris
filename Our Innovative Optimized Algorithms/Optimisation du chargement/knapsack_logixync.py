@@ -1,189 +1,203 @@
-import math
-from collections import defaultdict
-from typing import List, Dict, Tuple
+import os
+import json
+from math import radians, cos, sin, asin, sqrt
+from datetime import datetime
+from flask import Flask, request, jsonify
+from sqlalchemy.orm import sessionmaker
+import sys
 
-# Définition d'une commande (order) sous forme de dictionnaire
-# Chaque commande a :
-#   - 'id' : identifiant unique
-#   - 'product_type' : type de produit (ex. "laitiers", "nettoyage", "alimentation", …)
-#   - 'destination' : (x, y) coordonnées (ou tout autre système géographique simplifié)
-#   - 'weight' : poids de la commande
-#   - 'dimensions' : (length, width, height) en unités cohérentes (pour calculer le volume)
-#
-# On calcule alors 'volume' = length * width * height.
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.insert(0, parent_dir)
 
-
-def compute_volume(dimensions: Tuple[float, float, float]) -> float:
-    length, width, height = dimensions
-    return length * width * height
+# Now you can import your module as expected
+from Web_Application.Server.app.models import init_db, Command, Palette, Product, Camion
 
 
-# Fonction pour calculer la distance Euclidienne entre deux destinations
-def distance(dest1: Tuple[float, float], dest2: Tuple[float, float]) -> float:
-    return math.sqrt((dest1[0] - dest2[0]) ** 2 + (dest1[1] - dest2[1]) ** 2)
+app = Flask(__name__)
+engine = init_db()  # Initialisation de la base SQLite et création des tables
+Session = sessionmaker(bind=engine)
+
+# Chargement du fichier JSON contenant les types de produits et leurs contraintes
+PRODUCTS_JSON_PATH = os.path.join(parent_dir, "Web_Application/Server/products.json")
+with open(PRODUCTS_JSON_PATH, "r") as f:
+    products_data = json.load(f)
+# On crée un dictionnaire pour accéder rapidement aux infos de chaque type
+product_types_info = {pt["type"]: pt for pt in products_data.get("product_types", [])}
+
+# Seuil de distance pour regrouper des commandes (en kilomètres)
+THRESHOLD_DISTANCE = 10
 
 
-# Regrouper les commandes par type de produit et proximité des destinations
-# destination_threshold définit la distance maximale pour considérer que deux destinations sont proches.
-def group_orders(
-    orders: List[Dict], destination_threshold: float
-) -> Dict[Tuple[str, int], List[Dict]]:
-    # Pour chaque type de produit, nous allons créer des sous-groupes numérotés.
-    groups = {}  # clé: (product_type, group_id), valeur: liste d'ordres
-    # Structure temporaire pour chaque type
-    type_groups = defaultdict(list)
-
-    # D'abord, regrouper par type
-    for order in orders:
-        order["volume"] = compute_volume(order["dimensions"])
-        type_groups[order["product_type"]].append(order)
-
-    # Pour chaque type, regrouper par proximité de destination
-    result_groups = {}
-    for ptype, orders_list in type_groups.items():
-        group_id = 0
-        # Liste de groupes pour ce type, chaque groupe est représenté par (rep_dest, [order,...])
-        groups_for_type = []
-        for order in orders_list:
-            assigned = False
-            for idx, (rep_dest, group_orders_list) in enumerate(groups_for_type):
-                if distance(rep_dest, order["destination"]) <= destination_threshold:
-                    group_orders_list.append(order)
-                    # Actualiser légèrement le centre (rep_dest) du groupe en faisant la moyenne
-                    new_x = (
-                        rep_dest[0] * len(group_orders_list) + order["destination"][0]
-                    ) / (len(group_orders_list) + 1)
-                    new_y = (
-                        rep_dest[1] * len(group_orders_list) + order["destination"][1]
-                    ) / (len(group_orders_list) + 1)
-                    groups_for_type[idx] = ((new_x, new_y), group_orders_list)
-                    assigned = True
-                    break
-            if not assigned:
-                # Créer un nouveau groupe avec ce point comme centre
-                groups_for_type.append((order["destination"], [order]))
-
-        # Enregistrer chaque groupe avec une clé composée de (product_type, group_id)
-        for g in groups_for_type:
-            result_groups[(ptype, group_id)] = g[1]
-            group_id += 1
-    return result_groups
-
-
-# Calculer une "efficacité" pour chaque commande.
-# Ici, nous définissons l'efficacité comme la somme relative de la consommation du poids et du volume,
-# par rapport aux capacités maximales du camion.
-def order_efficiency(order: Dict, W_max: float, V_max: float) -> float:
-    # Par exemple : efficacité = (poids/W_max + volume/V_max)
-    return order["weight"] / W_max + order["volume"] / V_max
-
-
-# Algorithme de chargement heuristique
-def optimize_loading(
-    orders: List[Dict], W_max: float, V_max: float, destination_threshold: float
-) -> List[Dict]:
+def parse_coordinates(destination):
     """
-    orders: liste de commandes (chaque commande doit contenir 'id', 'product_type', 'destination',
-            'weight', 'dimensions' (tuple) ; 'volume' sera calculé)
-    W_max: poids maximum du camion
-    V_max: volume maximum du camion
-    destination_threshold: seuil de distance pour regrouper les commandes par proximité
-    Retourne la liste des commandes sélectionnées pour remplir le camion.
+    Extrait les coordonnées d'une destination au format "lat,lon".
+    Retourne un tuple (lat, lon) ou None si le format est incorrect.
     """
-    # Groupage par type et destination
-    grouped_orders = group_orders(orders, destination_threshold)
+    try:
+        lat, lon = map(float, destination.split(","))
+        return lat, lon
+    except Exception:
+        return None
 
-    # Pour chaque groupe, trier les commandes par efficacité décroissante
-    for key, group in grouped_orders.items():
-        group.sort(
-            key=lambda order: order_efficiency(order, W_max, V_max), reverse=True
-        )
 
-    # Tri des groupes par une métrique agrégée (par exemple, somme des efficacités) décroissante
-    groups_sorted = sorted(
-        grouped_orders.items(),
-        key=lambda item: sum(order_efficiency(o, W_max, V_max) for o in item[1]),
-        reverse=True,
+def haversine(lat1, lon1, lat2, lon2):
+    """
+    Calcule la distance en kilomètres entre deux points géographiques.
+    """
+    R = 6371  # Rayon de la Terre en km
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = (
+        sin(dlat / 2) ** 2
+        + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
     )
-
-    current_weight = 0.0
-    current_volume = 0.0
-    selected_orders = []
-
-    # Parcourir les groupes et tenter d'ajouter chaque commande si elle tient dans le camion
-    for group_key, group in groups_sorted:
-        for order in group:
-            if (
-                current_weight + order["weight"] <= W_max
-                and current_volume + order["volume"] <= V_max
-            ):
-                selected_orders.append(order)
-                current_weight += order["weight"]
-                current_volume += order["volume"]
-
-    return selected_orders
+    c = 2 * asin(sqrt(a))
+    return R * c
 
 
-# Exemple d'utilisation :
-if __name__ == "__main__":
-    # Définir quelques commandes exemples
-    orders = [
-        {
-            "id": "order_1",
-            "product_type": "laitiers",
-            "destination": (10, 20),
-            "weight": 100,  # en kg
-            "dimensions": (1.0, 0.5, 0.5),  # en m (volume = 0.25 m^3)
-        },
-        {
-            "id": "order_2",
-            "product_type": "laitiers",
-            "destination": (11, 21),  # proche de (10,20)
-            "weight": 150,
-            "dimensions": (1.2, 0.5, 0.5),
-        },
-        {
-            "id": "order_3",
-            "product_type": "alimentation",
-            "destination": (50, 60),
-            "weight": 200,
-            "dimensions": (1.0, 1.0, 0.5),
-        },
-        {
-            "id": "order_4",
-            "product_type": "alimentation",
-            "destination": (51, 61),
-            "weight": 100,
-            "dimensions": (0.8, 0.5, 0.5),
-        },
-        {
-            "id": "order_5",
-            "product_type": "nettoyage",
-            "destination": (15, 25),
-            "weight": 80,
-            "dimensions": (0.5, 0.5, 0.5),
-        },
-        {
-            "id": "order_6",
-            "product_type": "nettoyage",
-            "destination": (16, 26),
-            "weight": 90,
-            "dimensions": (0.6, 0.5, 0.5),
-        },
-    ]
+def are_product_types_compatible(order1, order2):
+    """
+    Vérifie la compatibilité entre deux commandes sur la base de leur type de produit.
+    """
+    pt1 = order1["product_type"]
+    pt2 = order2["product_type"]
+    incompat1 = order1.get("incompatible_types", [])
+    incompat2 = order2.get("incompatible_types", [])
+    if pt2 in incompat1 or pt1 in incompat2:
+        return False
+    return True
 
-    # Définir les capacités du camion
-    W_max = 1000  # poids max en kg
-    V_max = 10.0  # volume max en m^3
-    destination_threshold = 5.0  # seuil de regroupement en unités de distance (peut être en km ou unité arbitraire)
 
-    loaded_orders = optimize_loading(orders, W_max, V_max, destination_threshold)
+@app.route("/api/load_plan", methods=["POST"])
+def load_plan():
+    """
+    Endpoint pour la planification du chargement.
+    Expects un JSON de la forme:
+    {
+        "order_ids": [1, 2, 3, ...]
+    }
+    Retourne des groupes de commandes pouvant être envoyées ensemble avec le camion sélectionné et l'ID du contrat associé.
+    """
+    data = request.get_json()
+    if "order_ids" not in data:
+        return jsonify({"error": "Le champ 'order_ids' est obligatoire."}), 400
+    order_ids = data["order_ids"]
 
-    print("Commandes sélectionnées pour le chargement du camion :")
-    for o in loaded_orders:
-        print(
-            f"ID: {o['id']}, Type: {o['product_type']}, Destination: {o['destination']}, Poids: {o['weight']}, Volume: {o['volume']:.2f}"
+    session = Session()
+    orders = session.query(Command).filter(Command.id.in_(order_ids)).all()
+    if not orders:
+        session.close()
+        return jsonify({"error": "Aucune commande trouvée pour les IDs fournis."}), 404
+
+    # Construction d'une liste d'informations pertinentes pour chaque commande
+    orders_info = []
+    for order in orders:
+        # On considère ici qu'une commande possède au moins une palette
+        if not order.palettes:
+            continue
+        palette = order.palettes[0]
+        product = session.query(Product).filter_by(id=palette.product_id).first()
+        if not product:
+            continue
+        coords = parse_coordinates(order.destination)
+        if not coords:
+            continue
+        # Le type de produit est une chaîne qui doit correspondre aux clés du fichier JSON
+        ptype = product.type
+        pt_info = product_types_info.get(ptype, {})
+        orders_info.append(
+            {
+                "order_id": order.id,
+                "coords": coords,
+                "product_type": ptype,
+                "incompatible_types": pt_info.get("incompatible_types", []),
+                "weight": palette.weight,
+                "volume": palette.height * palette.width * palette.length,
+                "min_temp": pt_info.get("min_temperature"),
+                "max_temp": pt_info.get("max_temperature"),
+            }
         )
 
-    print(f"Charge totale: {sum(o['weight'] for o in loaded_orders)} kg")
-    print(f"Volume total utilisé: {sum(o['volume'] for o in loaded_orders):.2f} m^3")
+    # Regroupement glouton des commandes compatibles et géographiquement proches
+    groups = []
+    used = set()
+    for i, order in enumerate(orders_info):
+        if order["order_id"] in used:
+            continue
+        group = [order]
+        used.add(order["order_id"])
+        for j, other in enumerate(orders_info):
+            if other["order_id"] in used:
+                continue
+            # Vérification de la proximité géographique
+            dist = haversine(
+                order["coords"][0],
+                order["coords"][1],
+                other["coords"][0],
+                other["coords"][1],
+            )
+            if dist > THRESHOLD_DISTANCE:
+                continue
+            # Vérification de la compatibilité des types de produits
+            compatible = True
+            for existing in group:
+                if not are_product_types_compatible(existing, other):
+                    compatible = False
+                    break
+            if compatible:
+                group.append(other)
+                used.add(other["order_id"])
+        groups.append(group)
+
+    result_groups = []
+    for group in groups:
+        total_weight = sum(item["weight"] for item in group)
+        total_volume = sum(item["volume"] for item in group)
+        # Calcul des contraintes de température communes, si définies
+        temps_min = [item["min_temp"] for item in group if item["min_temp"] is not None]
+        temps_max = [item["max_temp"] for item in group if item["max_temp"] is not None]
+        overall_min_temp = max(temps_min) if temps_min else None
+        overall_max_temp = min(temps_max) if temps_max else None
+
+        # Recherche des camions disponibles répondant aux contraintes de capacité
+        available_trucks = session.query(Camion).filter(Camion.state == True).all()
+        candidate_trucks = []
+        for truck in available_trucks:
+            if truck.poids_max < total_weight or truck.volume_max < total_volume:
+                continue
+            # Vérification des contraintes de température, le cas échéant
+            if overall_min_temp is not None and overall_max_temp is not None:
+                if not (overall_min_temp <= truck.temperature <= overall_max_temp):
+                    continue
+            candidate_trucks.append(truck)
+        if not candidate_trucks:
+            # Si aucun camion ne convient pour ce groupe, on passe au suivant
+            continue
+        # Sélection du camion avec le coût de transport minimal
+        candidate_trucks.sort(key=lambda t: t.transport_cost)
+        selected_truck = candidate_trucks[0]
+        # Marquer le camion comme occupé
+        selected_truck.state = False
+        session.commit()
+        # Récupérer l'ID du contrat associé (premier trouvé)
+        contract_id = (
+            selected_truck.contracts[0].id if selected_truck.contracts else None
+        )
+
+        result_groups.append(
+            {
+                "order_ids": [item["order_id"] for item in group],
+                "truck_id": selected_truck.id,
+                "contract_id": contract_id,
+                "total_weight": total_weight,
+                "total_volume": total_volume,
+            }
+        )
+
+    session.commit()
+    session.close()
+    return jsonify({"groups": result_groups}), 200
+
+
+if __name__ == "__main__":
+    app.run(debug=True)

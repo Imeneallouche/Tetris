@@ -1,25 +1,53 @@
-from datetime import datetime
+# /*//////////////////////////////////////////////////////////////
+#                    MADE WITH <3 BY T34M IMP3RM34BLE
+#                                IMPORTS
+# /////////////////////////////////////////////////////////////*/
+
 from flask import Flask, jsonify, render_template, request
+from datetime import datetime
+from sqlalchemy.orm import sessionmaker
+import os
+import json
+from math import radians, cos, sin, asin, sqrt
+from datetime import datetime, timedelta
+import sys
 from app.services.loading_optimizer.optimizer import InitialGroupingOptimizer, TruckLoadingOptimizer
 from app.models import Camion, CamionType, Palette, init_db, Session, User, Command, Product
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.insert(0, parent_dir)
 
+from app.models import init_db, User, Command, Palette, Product, Camion, Stock, UserRole
+
+
+# /*//////////////////////////////////////////////////////////////
+#                  STATIC VARIABLES AND INITIALIZATIONS
+# //////////////////////////////////////////////////////////////*/
 
 app = Flask(__name__, template_folder='templates')
+engine = init_db()  # Initialize the SQLite database and create tables
+Session = sessionmaker(bind=engine)
 
-# Initialisation de la base de données
-init_db()
+
+# Valeurs par défaut pour les palettes
+DEFAULT_PALETTE_EMPTY_WEIGHT = 10.0  # poids de la palette vide
+DEFAULT_PALETTE_DIMENSION = 1.0  # dimensions par défaut (height, width, length)
+THRESHOLD_DISTANCE = 10  # Threshold distance (in kilometers) to group orders and to check supplier proximity
+WAREHOUSE_COORD = "48.8566,2.3522"  # example coordinate (Paris center)
+
+# Load the JSON file with product types and their constraints
+PRODUCTS_JSON_PATH = os.path.join(parent_dir, "Web_Application/Server/products.json")
+with open(PRODUCTS_JSON_PATH, "r") as f:
+    products_data = json.load(f)
+# Build a lookup dictionary for product type info
+product_types_info = {pt["type"]: pt for pt in products_data.get("product_types", [])}
+
+
+#######################################" CHARGEMENT"#################################################
 
 app.wsgi_app = ProxyFix(app.wsgi_app)
-
-import os
-template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
-print("Template directory Flask is using:", template_dir)
-print("Does it exist?", os.path.exists(template_dir))
-
-
 # Initialisation des optimiseurs
 initial_optimizer = InitialGroupingOptimizer('products.json')
 truck_optimizer = None  # sera initialisé avec les camions disponibles
@@ -177,5 +205,8 @@ def _format_loading_plan(loading_plan):
         }
     }
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
+
+
+
