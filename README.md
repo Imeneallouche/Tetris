@@ -1,12 +1,21 @@
+<p align="center">
+  <img width=50% src="logo.png" alt="logo"/>
+</p>
+
 # Titris
 
 Tetris est une solution qui est conçue pour répondre aux problématiques logistiques actuelles en optimisant simultanément le chargement, l’itinéraire et la planification/coordination des transports. En combinant des algorithmes avancés, des intégrations en temps réel et des méthodes d’intelligence artificielle, notre solution permet de réduire significativement les coûts, le temps de transit, le nombre et d’améliorer l’efficacité opérationnelle des entreprises logistiques.
+
+## Pourquoi Tetris?
+
+Notre solution, baptisée **Tetris**, s'inspire du célèbre jeu de puzzle où le succès repose sur l'optimisation du placement des pièces pour remplir l'espace de manière efficace. De la même manière, l'optimisation du chargement des palettes dans nos camions est cruciale pour réduire le nombre de véhicules nécessaires, minimiser les trajets à vide et ainsi diminuer considérablement les coûts de transport. En optimisant l'agencement des commandes—en tenant compte des dimensions, du poids, des contraintes de sécurité et de la répartition latérale—nous maximisons l'utilisation de l'espace disponible, garantissant une stabilité et une efficacité accrues lors des livraisons. Cette étape, véritable fondation de notre solution, permet non seulement d'économiser du carburant et du temps, mais aussi d'améliorer la coordination globale du transport, faisant de Tetris une solution innovante et performante dans le domaine logistique.
 
 <br><br>
 
 ## Table des Matières
 
 - [Titris](#titris)
+  - [Pourquoi Tetris?](#pourquoi-tetris)
   - [Table des Matières](#table-des-matières)
   - [Introduction](#introduction)
   - [Architecture de la Solution](#architecture-de-la-solution)
